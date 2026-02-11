@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What is an MCP Control Plane? — Governance for MCP Tool Calls</title>
+  <meta name="description" content="When an LLM calls your MCP server, the transport carries a shared API key — not the user's identity. An MCP control plane fixes this: identity, authorization, safety, and audit for every MCP tool call.">
+  <link rel="canonical" href="https://mcpcontrolplane.com/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="What is an MCP Control Plane? — Governance for MCP Tool Calls">
+  <meta property="og:description" content="When an LLM calls your MCP server, the transport carries a shared API key — not the user's identity. An MCP control plane fixes this: identity, authorization, safety, and audit for every MCP tool call.">
+  <meta property="og:url" content="https://mcpcontrolplane.com/">
+  <meta property="og:image" content="https://mcpcontrolplane.com/og-image.png">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="MCP Control Plane">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://mcpcontrolplane.com/og-image.png">
+  <meta name="twitter:title" content="What is an MCP Control Plane? — Governance for MCP Tool Calls">
+  <meta name="twitter:description" content="When an LLM calls your MCP server, the transport carries a shared API key — not the user's identity. An MCP control plane fixes this.">
+
+  <style>
+    /* ---------- Design tokens (matched to llmcontrolplane.com / agenticcontrolplane.com) ---------- */
+    :root {
+      --bg: #0a0f1e;
+      --bg-elev: rgba(255, 255, 255, 0.06);
+      --text: rgba(255, 255, 255, 0.92);
+      --text-dim: rgba(255, 255, 255, 0.72);
+      --text-faint: rgba(255, 255, 255, 0.58);
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #818cf8;
+      --accent-deep: #4f46e5;
+      --cyan: #06b6d4;
+      --danger: #ff4d6d;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* ---------- Reset ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { height: 100%; overflow-x: hidden; }
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      color: var(--text);
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 120% 80% at 20% 0%, rgba(79,70,229,0.18), rgba(79,70,229,0) 70%),
+        radial-gradient(ellipse 100% 70% at 80% 0%, rgba(34,197,94,0.08), rgba(34,197,94,0) 65%);
+      background-attachment: fixed;
+      font-size: 18px;
+      line-height: 1.7;
+      letter-spacing: -0.01em;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    :focus-visible { outline: 3px solid rgba(79,70,229,0.55); outline-offset: 2px; }
+
+    /* ---------- Layout ---------- */
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 64px 24px 80px;
+    }
+
+    /* ---------- Typography ---------- */
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin: 0 0 32px;
+      color: var(--text);
+    }
+    h2 {
+      font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+      line-height: 1.3;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 48px 0 16px;
+      color: var(--text);
+    }
+    p { margin: 0 0 18px; color: var(--text-dim); }
+    strong { color: var(--text); font-weight: 600; }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: var(--bg-elev);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--cyan);
+    }
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* ---------- Diagram ---------- */
+    .diagram-wrap {
+      margin: 32px 0 24px;
+      overflow-x: auto;
+    }
+
+    /* ---------- Governance layers ---------- */
+    .gov-layers { margin: 20px 0 24px; padding: 0; list-style: none; }
+    .gov-layers li {
+      padding: 0 0 14px;
+      margin: 0;
+      color: var(--text-dim);
+    }
+    .gov-layers li strong { color: var(--text); }
+
+    /* ---------- Not-comparisons ---------- */
+    .not-item { margin-bottom: 14px; }
+    .not-item strong { color: var(--text); }
+
+    /* ---------- When-list ---------- */
+    .when-item { margin-bottom: 14px; }
+    .when-item strong { color: var(--text); }
+
+    /* ---------- CTA link ---------- */
+    .cta-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ---------- Footer ---------- */
+    .footer {
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--text-faint);
+      line-height: 1.6;
+    }
+    .footer a { color: var(--text-faint); }
+    .footer a:hover { color: var(--accent); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 640px) {
+      .content { padding: 40px 18px 60px; }
+      body { font-size: 17px; }
+    }
+  </style>
+
+  <!-- Privacy-friendly analytics by Plausible -->
+  <script async src="https://analytics.reducibl.com/js/pa-xwhOcxcx3AZrr-Od-XHZ8.js"></script>
+  <script>
+    window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+    plausible.init()
+  </script>
+</head>
+<body>
+  <main class="content">
+
+    <h1>what is an mcp control plane?</h1>
+
+    <p>you built an MCP server. a tool call comes in from ChatGPT, Claude, or Cursor. your server receives the request, executes the function, returns the result. it works.</p>
+
+    <p>but look at what arrived with that tool call. the MCP transport carries a shared API key — the one your LLM runtime uses to connect. it does not carry the identity of the person who triggered it. your MCP server has no idea who that user is, what they're authorized to do, whether the tool call parameters contain PII, or whether this is the 500th request in a runaway agent loop. it processes the call blind.</p>
+
+    <p>this is the MCP identity problem. and it's the reason every team that moves an MCP integration from demo to production discovers they need something between the LLM runtime and their MCP servers. that something is an <strong>MCP control plane</strong>.</p>
+
+    <hr>
+
+    <h2>the six governance layers</h2>
+
+    <p>an MCP control plane intercepts every tool call before it reaches your MCP servers and passes it through a governance pipeline. six layers, executed in order, deny-by-default:</p>
+
+    <ul class="gov-layers">
+      <li><strong>identity resolution</strong> — extract and verify the end user's identity from the MCP transport. the LLM runtime authenticates against your IdP (Auth0, Okta, Entra ID) and passes an RS256 JWT through the MCP connection. the control plane validates this token and binds the tool call to a real person. without this, the remaining five layers have nothing to work with.</li>
+      <li><strong>content safety</strong> — inspect tool call parameters for sensitive data before they reach your MCP server or get sent back to the model. credit card numbers in a <code>search_customers</code> call. medical record IDs in a <code>lookup_patient</code> response. PII detection runs on both the inbound arguments and the outbound result.</li>
+      <li><strong>policy enforcement</strong> — check whether this specific user is allowed to invoke this specific MCP tool. a junior analyst can call <code>read_report</code> but not <code>delete_account</code>. policies are defined per tool schema, evaluated against the verified user's roles and scopes. deny-by-default: if no policy explicitly permits the call, it's rejected.</li>
+      <li><strong>rate limits and budget controls</strong> — per-user request quotas and cost caps, enforced before the tool call executes. pre-flight checks catch runaway agent loops — if Cursor's agent is hammering your <code>query_database</code> tool 200 times in a minute, the control plane kills it before your database does.</li>
+      <li><strong>secure routing</strong> — forward the verified, policy-checked tool call to the correct MCP server with the user's identity injected into the request context. SSRF protection ensures a prompt injection can't trick the LLM into calling <code>admin_reset_database</code> through a tool call that the user's policy wouldn't allow.</li>
+      <li><strong>audit logging</strong> — write a structured, immutable record for every tool call. who triggered it (verified identity), which MCP tool was invoked, what policy was evaluated, whether it was approved or denied, latency, cost. this is the log your compliance team asks for when they want to know who accessed customer data through the AI last Tuesday.</li>
+    </ul>
+
+    <hr>
+
+    <h2>where it sits in the stack</h2>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 140" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing the MCP control plane position: user to LLM runtime to MCP control plane to your MCP servers" style="width:100%;max-width:760px;display:block;margin:0 auto;">
+        <!-- user -->
+        <rect x="10" y="20" width="130" height="100" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <text x="75" y="58" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-family="system-ui,sans-serif" font-size="14" font-weight="600">user</text>
+        <text x="75" y="78" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">authenticates via SSO</text>
+        <text x="75" y="94" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">JWT with roles, scopes</text>
+        <!-- arrow 1 -->
+        <line x1="140" y1="70" x2="175" y2="70" stroke="rgba(129,140,248,0.6)" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <polygon points="175,66 183,70 175,74" fill="rgba(129,140,248,0.6)"/>
+        <!-- llm runtime -->
+        <rect x="185" y="20" width="140" height="100" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <text x="255" y="52" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-family="system-ui,sans-serif" font-size="14" font-weight="600">LLM runtime</text>
+        <text x="255" y="72" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">ChatGPT · Claude</text>
+        <text x="255" y="88" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">Cursor · agents</text>
+        <text x="255" y="106" text-anchor="middle" fill="rgba(255,255,255,0.42)" font-family="system-ui,sans-serif" font-size="10">emits MCP tool calls</text>
+        <!-- arrow 2 -->
+        <line x1="325" y1="70" x2="370" y2="70" stroke="rgba(129,140,248,0.6)" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <polygon points="370,66 378,70 370,74" fill="rgba(129,140,248,0.6)"/>
+        <!-- MCP control plane (highlighted) -->
+        <rect x="380" y="20" width="170" height="100" rx="12" fill="rgba(79,70,229,0.12)" stroke="rgba(129,140,248,0.4)" stroke-width="1.5"/>
+        <text x="465" y="48" text-anchor="middle" fill="rgba(129,140,248,1)" font-family="system-ui,sans-serif" font-size="14" font-weight="700">MCP control plane</text>
+        <text x="465" y="68" text-anchor="middle" fill="rgba(255,255,255,0.58)" font-family="system-ui,sans-serif" font-size="10">identity · policy · safety</text>
+        <text x="465" y="82" text-anchor="middle" fill="rgba(255,255,255,0.58)" font-family="system-ui,sans-serif" font-size="10">limits · routing · audit</text>
+        <text x="465" y="106" text-anchor="middle" fill="rgba(129,140,248,0.7)" font-family="system-ui,sans-serif" font-size="10">governs MCP tool calls</text>
+        <!-- arrow 3 -->
+        <line x1="550" y1="70" x2="595" y2="70" stroke="rgba(6,182,212,0.6)" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <polygon points="595,66 603,70 595,74" fill="rgba(6,182,212,0.6)"/>
+        <!-- MCP servers -->
+        <rect x="605" y="20" width="145" height="100" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <text x="677" y="52" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-family="system-ui,sans-serif" font-size="14" font-weight="600">your MCP servers</text>
+        <text x="677" y="72" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">tools, resources</text>
+        <text x="677" y="88" text-anchor="middle" fill="rgba(255,255,255,0.52)" font-family="system-ui,sans-serif" font-size="11">prompts, sampling</text>
+        <text x="677" y="106" text-anchor="middle" fill="rgba(255,255,255,0.42)" font-family="system-ui,sans-serif" font-size="10">receives verified identity</text>
+      </svg>
+    </div>
+
+    <p>the MCP control plane sits at a specific point: after the LLM runtime decides to invoke a tool, but before the tool call reaches your MCP server. it's the trust boundary for the MCP protocol. here's what it's commonly confused with — and why the distinctions matter:</p>
+
+    <p class="not-item"><strong>not an MCP server itself.</strong> an MCP server exposes tools, resources, and prompts to LLM runtimes. the control plane doesn't expose tools — it governs access to MCP servers that do. it's the layer that decides whether a given tool call, from a given user, is allowed to reach a given server. your MCP servers sit behind it.</p>
+
+    <p class="not-item"><strong>not an LLM gateway.</strong> portkey, litellm, and openrouter sit between your application and model providers — they route prompts, optimize costs, handle failover. that's the <em>prompt side</em> of the model. the MCP control plane sits on the <em>tool side</em> — between the model and your backend. different traffic, different direction, different problem.</p>
+
+    <p class="not-item"><strong>not an API gateway.</strong> kong, apigee, and aws api gateway manage HTTP traffic — routing, TLS termination, API-key-based rate limiting. but they see one caller: the LLM runtime's service account. they can't distinguish the user behind the tool call from the service making it. the MCP control plane resolves this three-party identity problem: user, LLM runtime, and MCP server are three distinct entities with different trust levels.</p>
+
+    <p class="not-item"><strong>not an agent framework.</strong> langchain, crewai, and autogen help you build agents that decide which tools to call. the MCP control plane governs whether those calls are permitted. the framework chooses the action. the control plane enforces the rules.</p>
+
+    <hr>
+
+    <h2>relationship to the broader pattern</h2>
+
+    <p>"MCP control plane" is the protocol-specific term for a pattern that applies wherever LLMs call backends on behalf of users. the same six governance layers — identity, safety, policy, limits, routing, audit — are needed whether the integration uses MCP, the OpenAI Responses API, or a custom tool-calling protocol.</p>
+
+    <p>the broader term is <a href="https://agenticcontrolplane.com/what-is-an-agentic-control-plane">agentic control plane</a> — the same architecture extended to multi-agent systems, autonomous workflows, and any AI system that takes actions on behalf of users. the governance pipeline is identical. the scope is wider.</p>
+
+    <p>you're here because you have an MCP problem — your MCP server can't identify users, enforce policies, or produce audit trails. but the infrastructure you build to solve it will govern any LLM-to-backend integration you add later. the entry point is MCP-specific. the pattern is universal.</p>
+
+    <hr>
+
+    <h2>when you need one</h2>
+
+    <p class="when-item"><strong>your MCP server works in demo but production needs per-user auth.</strong> you tested with a single API key and your own account. now ten teams want to connect their LLM clients and each user needs their own identity, permissions, and rate limits. the shared-key model doesn't scale.</p>
+
+    <p class="when-item"><strong>you've had a runaway agent incident.</strong> an agent loop called your <code>query_database</code> tool 3,000 times in five minutes before anyone noticed. per-user rate limiting and loop detection at the control plane level would have killed it at request 50.</p>
+
+    <p class="when-item"><strong>your MCP server accesses customer data and compliance wants audit trails.</strong> the security review asks: "who accessed what through the AI, and when?" your MCP server doesn't log user identity because it never receives user identity. the control plane solves both problems at once.</p>
+
+    <p class="when-item"><strong>you're connecting multiple LLM clients to the same MCP servers.</strong> ChatGPT for customer support, Claude for internal ops, Cursor for engineering. each runtime connects differently, but your MCP servers need a single, consistent identity and policy layer across all of them.</p>
+
+    <p class="when-item"><strong>tool call parameters contain sensitive data.</strong> users are passing customer emails, account numbers, and medical record IDs through MCP tool calls. some of that data flows to the LLM context window. you need content inspection that catches PII before it leaks — in both directions.</p>
+
+    <hr>
+
+    <h2>implementation</h2>
+
+    <p>the architecture is what matters: six governance layers, executed in order, deny-by-default, with verified user identity flowing through the entire pipeline. start with identity verification — it's the foundation every other layer depends on — then add policy enforcement and audit logging. content safety and rate limiting come next as your compliance requirements grow.</p>
+
+    <p><a href="https://github.com/davidcrowe/gatewaystack">GatewayStack</a> is an open-source (MIT) implementation — six composable npm modules, one per governance layer. it sits in front of your MCP servers and intercepts tool calls at the transport level. <a href="https://connect.gatewaystack.com/login">GatewayStack Connect</a> provides the same governance pipeline as a managed service with a dashboard for policy management and audit log queries.</p>
+
+    <div class="footer">
+      <p>written by <a href="https://reducibl.com">david crowe</a> · <a href="https://www.linkedin.com/in/mrdavidcrowe/">linkedin</a></p>
+    </div>
+
+  </main>
+
+  <!-- Structured data: TechArticle -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "What is an MCP Control Plane? — Governance for MCP Tool Calls",
+    "description": "When an LLM calls your MCP server, the transport carries a shared API key — not the user's identity. An MCP control plane intercepts every MCP tool call to enforce identity, authorization, content safety, rate limits, secure routing, and audit logging.",
+    "author": {
+      "@type": "Person",
+      "name": "David Crowe",
+      "url": "https://reducibl.com"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "MCP Control Plane",
+      "url": "https://mcpcontrolplane.com"
+    },
+    "datePublished": "2026-02-10",
+    "dateModified": "2026-02-10",
+    "mainEntityOfPage": "https://mcpcontrolplane.com/",
+    "keywords": "MCP control plane, MCP server authentication, MCP identity problem, MCP security, MCP governance, Model Context Protocol",
+    "proficiencyLevel": "Beginner"
+  }
+  </script>
+
+  <!-- Structured data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is an MCP control plane?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "An MCP control plane is the governance layer that sits between LLM runtimes (ChatGPT, Claude, Cursor) and your MCP servers. When an LLM issues an MCP tool call, the control plane intercepts it to verify the end user's identity, enforce per-tool authorization policies, scan tool call parameters for sensitive data, apply per-user rate limits and budget caps, route the call securely to the correct MCP server, and write an immutable audit record. It solves the MCP identity problem — the fact that MCP transports carry a shared API key rather than the identity of the user who triggered the tool call."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I add authentication to an MCP server?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "MCP server authentication requires resolving the three-party identity problem: the user, the LLM runtime, and your MCP server are separate entities. The LLM runtime authenticates the user via your identity provider (Auth0, Okta, Entra ID) and passes an RS256 JWT through the MCP transport. An MCP control plane validates this token on every tool call and injects the verified user identity into the request context before forwarding to your MCP server. This gives your server per-user identity without building auth logic into every tool handler. GatewayStack is one open-source implementation of this pattern."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the MCP identity problem?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The MCP identity problem is the architectural gap where MCP transports carry a shared API key — the credential the LLM runtime uses to connect to your MCP server — rather than the identity of the individual user who triggered the tool call. Your MCP server processes every request as the same service account, with no way to distinguish users, enforce per-user permissions, or attribute actions in audit logs. This breaks traditional authentication models and requires a dedicated governance layer (an MCP control plane) to resolve."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I secure MCP servers in production?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Securing MCP servers for production requires six governance layers: (1) identity resolution — verify end-user identity via JWT on every tool call, not just the LLM runtime's API key; (2) content safety — scan tool call parameters and responses for PII before they reach the model or your backend; (3) policy enforcement — per-tool, per-user authorization with deny-by-default rules; (4) rate limits — per-user request quotas and budget caps to catch runaway agent loops; (5) secure routing — SSRF protection and verified identity injection; (6) audit logging — immutable records of every tool call with identity, policy decisions, and cost. An MCP control plane implements all six layers as a governance proxy in front of your MCP servers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between an MCP control plane and an API gateway?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "An API gateway (Kong, Apigee, AWS API Gateway) manages HTTP traffic — routing, TLS termination, and rate limiting by API key. It sees one caller: the LLM runtime's service account. It cannot distinguish the user behind a tool call from the service making it. An MCP control plane understands the three-party identity model unique to AI integrations: the user, the LLM runtime, and the MCP server are three distinct entities with different trust levels. The control plane resolves the user's identity from the MCP transport, enforces per-user policies against tool schemas, and produces identity-attributed audit logs — none of which a traditional API gateway can do."
+        }
+      }
+    ]
+  }
+  </script>
+
+</body>
+</html>
