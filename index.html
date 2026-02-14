@@ -234,6 +234,8 @@
 
     <p class="not-item"><strong>not an agent framework.</strong> langchain, crewai, and autogen help you build agents that decide which tools to call. the MCP control plane governs whether those calls are permitted. the framework chooses the action. the control plane enforces the rules.</p>
 
+    <p class="not-item"><strong>not a monitoring layer.</strong> some approaches to agent security sit alongside your MCP servers — they discover credentials, scan for misconfigurations, and alert when something looks wrong. that's observational governance: you find out after the fact. an MCP control plane is <em>inline</em>. every tool call passes through it before execution. it doesn't tell you what went wrong — it prevents it from happening. the difference is detection vs. enforcement.</p>
+
     <hr>
 
     <h2>relationship to the broader pattern</h2>
@@ -256,6 +258,8 @@
 
     <p class="when-item"><strong>you're connecting multiple LLM clients to the same MCP servers.</strong> ChatGPT for customer support, Claude for internal ops, Cursor for engineering. each runtime connects differently, but your MCP servers need a single, consistent identity and policy layer across all of them.</p>
 
+    <p class="when-item"><strong>a prompt injection hit your MCP server through a tool call.</strong> a user asked the LLM to summarize a document. the document contained an injected instruction that tricked the agent into calling <code>admin_reset_database</code> — a tool the user was never authorized to use. this is the confused deputy problem: the LLM acts with the agent's permissions, not the user's. per-tool, per-user policy enforcement at the control plane catches it before the call executes.</p>
+
     <p class="when-item"><strong>tool call parameters contain sensitive data.</strong> users are passing customer emails, account numbers, and medical record IDs through MCP tool calls. some of that data flows to the LLM context window. you need content inspection that catches PII before it leaks — in both directions.</p>
 
     <hr>
@@ -264,7 +268,7 @@
 
     <p>the architecture is what matters: six governance layers, executed in order, deny-by-default, with verified user identity flowing through the entire pipeline. start with identity verification — it's the foundation every other layer depends on — then add policy enforcement and audit logging. content safety and rate limiting come next as your compliance requirements grow.</p>
 
-    <p><a href="https://github.com/davidcrowe/gatewaystack">GatewayStack</a> is an open-source (MIT) implementation — six composable npm modules, one per governance layer. it sits in front of your MCP servers and intercepts tool calls at the transport level. <a href="https://agenticcontrolplane.com/product">agentic control plane cloud</a> provides the same governance pipeline as a managed service with a dashboard for policy management and audit log queries.</p>
+    <p><a href="https://github.com/davidcrowe/gatewaystack">GatewayStack</a> is the only fully open-source (MIT) MCP control plane — six composable npm modules, one per governance layer, vendor-neutral by design. it works with any LLM runtime, any identity provider, and any MCP server. no lock-in to a specific model vendor or IAM stack. it sits in front of your MCP servers and intercepts tool calls at the transport level. <a href="https://agenticcontrolplane.com/product">agentic control plane cloud</a> provides the same governance pipeline as a managed service with a dashboard for policy management and audit log queries.</p>
 
     <div class="footer">
       <p>written by <a href="https://reducibl.com">david crowe</a> · <a href="https://www.linkedin.com/in/mrdavidcrowe/">linkedin</a></p>
@@ -333,6 +337,14 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "Securing MCP servers for production requires six governance layers: (1) identity resolution — verify end-user identity via JWT on every tool call, not just the LLM runtime's API key; (2) content safety — scan tool call parameters and responses for PII before they reach the model or your backend; (3) policy enforcement — per-tool, per-user authorization with deny-by-default rules; (4) rate limits — per-user request quotas and budget caps to catch runaway agent loops; (5) secure routing — SSRF protection and verified identity injection; (6) audit logging — immutable records of every tool call with identity, policy decisions, and cost. An MCP control plane implements all six layers as a governance proxy in front of your MCP servers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the confused deputy problem in MCP?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The confused deputy problem in MCP occurs when a prompt injection or malicious instruction tricks an LLM into invoking an MCP tool that the end user is not authorized to use. The LLM runtime acts as a 'deputy' — it has broad permissions to call tools, but it's acting on behalf of a user with limited permissions. Without per-user, per-tool policy enforcement, the LLM can be manipulated into calling admin tools, accessing restricted data, or performing destructive operations through the MCP transport. An MCP control plane prevents this by enforcing the user's actual permissions on every tool call, regardless of what the LLM was tricked into requesting."
         }
       },
       {
