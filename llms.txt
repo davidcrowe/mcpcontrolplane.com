@@ -1,0 +1,31 @@
+# MCP Control Plane
+
+> An MCP control plane is the governance layer that intercepts every MCP tool call before it reaches your MCP servers. It resolves user identity from the transport (not just the LLM runtime's API key), enforces per-user authorization, detects PII in tool call parameters, applies rate limits and budget caps, routes securely, and produces identity-attributed audit logs. It solves the MCP identity problem — the architectural gap where MCP transports carry a shared service credential rather than the identity of the human who triggered the tool call.
+
+## Key pages
+
+- [What is an MCP Control Plane?](https://mcpcontrolplane.com/): Six governance layers, stack position, relationship to API gateways and agent frameworks, confused deputy problem, and when you need one.
+
+## Related concepts
+
+- [Agentic Control Plane](https://agenticcontrolplane.com/what-is-an-agentic-control-plane): The broader category term. Same architecture, extended to multi-agent systems and autonomous workflows.
+- [ADCS — Agent Delegation Chain Specification](https://agenticcontrolplane.com/spec/delegation-chain): Open spec defining JSON data shape and six normative rules (origin invariant, scope intersection, budget propagation, cycle prevention, type vs runtime identity, audit emission) for multi-hop agent delegation. MCP handles one hop; ADCS specifies the chain of hops.
+- [Three-Axis Governance](https://agenticcontrolplane.com/three-axis-governance): Tool / agent / user ABAC with most-restrictive-wins intersection. The policy model ACP uses for every decision.
+- [EU AI Act Article 14 and AI Agent Delegation Chains](https://agenticcontrolplane.com/blog/eu-ai-act-article-14-ai-agent-delegation-chains): How the MCP control plane's structured audit log maps to Article 14(4)(a)-(e) human-oversight requirements effective August 2, 2026.
+
+## Implementation
+
+- [GatewayStack](https://github.com/davidcrowe/gatewaystack): Open-source (MIT) reference MCP control plane. Six composable npm modules, one per governance layer. Vendor-neutral by design.
+- [Agentic Control Plane Cloud](https://agenticcontrolplane.com/product): Managed MCP control plane with dashboard, integrations, and audit UI. Free tier: 5,000 governed tool calls/month.
+- [MCP Security Scanner](https://agenticcontrolplane.com/scan): Free in-browser scanner. Surfaces auth, input validation, rate-limit, and audit gaps in any MCP server against the MCP Security Checklist.
+
+## Integration guides
+
+- [Claude Code](https://agenticcontrolplane.com/integrations/claude-code): Route Claude Code's MCP tool calls through ACP with PreToolUse/PostToolUse hooks.
+- [Claude Desktop](https://agenticcontrolplane.com/integrations/claude-desktop): Add ACP as a remote MCP server to Claude Desktop.
+- [Cursor](https://agenticcontrolplane.com/integrations/cursor): Governance for Cursor Composer and Agent via the MCP connector.
+- [External MCP Servers](https://agenticcontrolplane.com/guides/mcp-servers): Register external MCP servers in ACP and govern calls to them with scopes, connection pooling, and SSRF protection.
+
+## Author
+
+David Crowe — [reducibl.com](https://reducibl.com)
